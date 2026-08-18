@@ -35,10 +35,10 @@ const config = {
     AUTO_LIKE_EMOJI: ['💋', '😶', '✨️', '💗', '🎈', '🎉', '🥳', '❤️', '🧫', '🐭'],
     PREFIX: '.',
     MAX_RETRIES: 3,
-    IMAGE_PATH: 'https://files.catbox.moe/dfe0h0.jpg',
+    IMAGE_PATH: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg',
     GROUP_INVITE_LINK: 'https://chat.whatsapp.com/D8cNYzjQcBdAbf72ZmuIrR',
     ADMIN_LIST_PATH: './admin.json',
-    RCD_IMAGE_PATH: 'https://files.catbox.moe/dfe0h0.jpg',
+    RCD_IMAGE_PATH: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg',
     NEWSLETTER_JID: '120363341506278064@newsletter',
     NEWSLETTER_MESSAGE_ID: '428',
     OTP_EXPIRY: 300000,
@@ -571,7 +571,7 @@ function setupCommandHandlers(socket, number) {
 > ʀᴇsᴘᴏɴᴅ ᴛɪᴍᴇ: ${Date.now() - msg.messageTimestamp * 1000}ms`;
 
                         const aliveMessage = {
-                            image: { url: "https://files.catbox.moe/dfe0h0.jpg" },
+                            image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
                             caption: `> ᴀᴍ ᴀʟɪᴠᴇ ɴn ᴋɪᴄᴋɪɴɢ 👾\n\n${captionText}`,
                             buttons: [
                                 {
@@ -622,7 +622,7 @@ function setupCommandHandlers(socket, number) {
                         const seconds = Math.floor(uptime % 60);
 
                         await socket.sendMessage(m.chat, {
-                            image: { url: "https://files.catbox.moe/dfe0h0.jpg" },
+                            image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
                             caption: `*🤖 ɪᴍᴍᴜ-x ᴀʟɪᴠᴇ*\n\n` +
                                     `*┏────〘 ɪᴍᴍᴜ-x 〙───⊷*\n` +
                                     `*┃* ᴜᴘᴛɪᴍᴇ: ${hours}h ${minutes}m ${seconds}s\n` +
@@ -669,7 +669,7 @@ case 'bot_stats': {
         };
 
         await socket.sendMessage(from, {
-            image: { url: "https://files.catbox.moe/dfe0h0.jpg" },
+            image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
             caption: captionText
         }, { 
             quoted: m,
@@ -709,7 +709,7 @@ case 'bot_info': {
         };
         
         await socket.sendMessage(from, {
-            image: { url: "https://files.catbox.moe/dfe0h0.jpg" },
+            image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
             caption: captionText
         }, { quoted: m });
     } catch (error) {
@@ -757,7 +757,7 @@ case 'menu': {
     };
 
     const menuMessage = {
-      image: { url: "https://files.catbox.moe/dfe0h0.jpg" },
+      image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
       caption: `*👾 ɪᴍᴍᴜ-x 👾*\n${menuText}`,
       buttons: [
         {
@@ -898,7 +898,7 @@ ${config.PREFIX}ᴀʟʟᴍᴇɴᴜ ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs
 `;
 
     await socket.sendMessage(from, {
-      image: { url: "https://files.catbox.moe/dfe0h0.jpg" },
+      image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
       caption: fallbackMenuText,
       contextInfo: messageContext // Added the newsletter context here too
     }, { quoted: fakevCard });
@@ -1009,7 +1009,7 @@ ${config.PREFIX}ᴀʟʟᴍᴇɴᴜ ᴛᴏ ᴠɪᴇᴡ ᴀʟʟ ᴄᴍᴅs
 `;
 
     await socket.sendMessage(from, {
-      image: { url: "https://files.catbox.moe/dfe0h0.jpg" },
+      image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
       caption: allMenuText
     }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
@@ -1575,7 +1575,7 @@ case 'song': {
                         headerType: 1,
                         viewOnce: true,
                         caption: '❏ *ʟᴏɢᴏ ᴍᴀᴋᴇʀ*',
-                        image: { url: 'https://files.catbox.moe/dfe0h0.jpg' },
+                        image: { url: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg' },
                     };
 
                     await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
@@ -2447,7 +2447,7 @@ User Message: ${q}
 
     // Send AI response with image and newsletter context
     await socket.sendMessage(sender, {
-        image: { url: 'https://files.catbox.moe/dfe0h0.jpg' }, // Replace with your AI response image
+        image: { url: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg' }, // Replace with your AI response image
         caption: response,
         ...messageContext
     }, { quoted: fakevCard });
@@ -2800,7 +2800,7 @@ case 'open': case 'unmute': {
         
         // Send image with success message
         await socket.sendMessage(sender, {
-            image: { url: 'https://files.catbox.moe/dfe0h0.jpg' }, // Replace with your image URL
+            image: { url: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg' }, // Replace with your image URL
             caption: formatMessage(
                 '🔓 𝐆𝐑𝐎𝐔𝐏 𝐎𝐏𝐄𝐍𝐄𝐃',
                 'ɢʀᴏᴜᴘ ɪs ɴᴏᴡ ᴏᴘᴇɴ! ᴀʟʟ ᴍᴇᴍʙᴇʀs ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs. 🗣️',
@@ -2850,7 +2850,7 @@ case 'close': case 'mute': {
         
         // Send image with success message
         await socket.sendMessage(sender, {
-            image: { url: 'https://files.catbox.moe/dfe0h0.jpg' }, // Replace with your image URL
+            image: { url: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg' }, // Replace with your image URL
             caption: formatMessage(
                 '🔒 𝐆𝐑𝐎𝐔𝐏 𝐂𝐋𝐎𝐒𝐄𝐃',
                 'ɢʀᴏᴜᴘ ɪs ɴᴏᴡ ᴄʟᴏsᴇᴅ! ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs. 🤫',
@@ -3614,7 +3614,7 @@ case 'script': {
 `;
 
         const repoMessage = {
-            image: { url: 'https://files.catbox.moe/dfe0h0.jpg' },
+            image: { url: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg' },
             caption: formattedInfo,
             buttons: [
                 {
