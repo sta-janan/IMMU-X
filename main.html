@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HANS-XMD MINI PAIR</title>
+  <link rel="icon" type="jpg" href="https://files.catbox.moe/dfe0h0.jpg">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Press Start 2P', cursive, sans-serif;
+      background: radial-gradient(circle at center, #0f0f0f, #000);
+      overflow: hidden;
+      color: #fff;
+    }
+
+    /* Background animated grid */
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(0,255,150,.1) 1px, transparent 1px),
+                  linear-gradient(0deg, rgba(0,255,150,.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridMove 10s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes gridMove {
+      0% { background-position: 0 0, 0 0; }
+      100% { background-position: 40px 40px, 40px 40px; }
+    }
+
+    .container {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .box {
+      width: 380px;
+      padding: 35px;
+      border-radius: 15px;
+      background: rgba(0, 0, 0, 0.8);
+      border: 3px solid #00ffcc;
+      box-shadow: 0 0 20px #00ffe0, inset 0 0 20px #00ffcc;
+      text-align: center;
+      animation: float 5s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .box i {
+      font-size: 3.2rem;
+      color: #00ffcc;
+      margin-bottom: 15px;
+      text-shadow: 0 0 20px #00ffe0, 0 0 40px #00ffcc;
+      animation: pulse 2s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { text-shadow: 0 0 10px #00ffe0; }
+      to { text-shadow: 0 0 25px #00ffe0, 0 0 50px #00ffcc; }
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      background: linear-gradient(90deg, #00ffcc, #ff00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(255,255,255,0.2);
+    }
+
+    h6 {
+      margin: 6px 0;
+      color: #bbb;
+      font-size: 0.8rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    .input-container {
+      display: flex;
+      background: rgba(0, 255, 200, 0.1);
+      border: 2px solid #00ffcc;
+      border-radius: 10px;
+      padding: 0.5rem;
+      gap: 0.5rem;
+      width: 100%;
+      margin-top: 20px;
+      box-shadow: 0 0 10px #00ffcc;
+    }
+
+    .input-container input {
+      flex: 1;
+      border: none;
+      border-radius: 6px;
+      padding: 0.8rem;
+      font-size: 1rem;
+      outline: none;
+      background: #000;
+      color: #0f0;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+    }
+
+    .input-container button {
+      background: linear-gradient(45deg, #00ffcc, #ff00ff);
+      border: none;
+      padding: 0.8rem 1.2rem;
+      border-radius: 6px;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: 'Press Start 2P', cursive;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px #ff00ff;
+    }
+
+    .input-container button:hover {
+      transform: scale(1.1);
+      background: linear-gradient(45deg, #ff00ff, #00ffcc);
+      box-shadow: 0 0 20px #ff00ff, 0 0 40px #00ffcc;
+    }
+
+    #waiting-message {
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: #ffcc00;
+      font-family: 'Courier New', monospace;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #pair {
+      margin-top: 15px;
+      font-size: 1rem;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    #copy-btn {
+      display: none;
+      margin-top: 20px;
+      background: linear-gradient(45deg, #ff0099, #00ffcc);
+      padding: 12px 25px;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      font-family: 'Press Start 2P', cursive;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 15px #ff0099;
+    }
+
+    #copy-btn:hover {
+      transform: scale(1.1);
+      background: linear-gradient(45deg, #00ffcc, #ff0099);
+      box-shadow: 0 0 25px #ff00ff, 0 0 45px #00ffcc;
+    }
+
+    @media (max-width: 500px) {
+      .box { width: 90%; }
+      .input-container { flex-direction: column; }
+      .input-container button { width: 100%; }
+    }
+
+    /* Load retro game font */
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="box" id="box">
+      <div id="text">
+        <i class="fas fa-gamepad"></i>
+        <h3>HANS-XMD PAIRING CODE</h3>
+        <h6>Made by Hans Tech ⚡</h6>
+        <h6>Enter your WhatsApp number with country code 🌍</h6>
+        <div class="input-container">
+          <input placeholder="923XXXX" type="number" id="number">
+          <button id="submit">✅ SUBMIT</button>
+        </div>
+        <div id="waiting-message" style="display: none;">⏳ Please wait...</div>
+        <div id="pair"></div>
+        <button id="copy-btn">📋 Copy Code</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Your Script (unchanged system, just upgraded visuals) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
+  <script>
+    let a = document.getElementById("pair");
+    let b = document.getElementById("submit");
+    let c = document.getElementById("number");
+
+    async function Copy() {
+      let text = document.getElementById("copy").innerText;
+      let obj = document.getElementById("copy");
+      await navigator.clipboard.writeText(obj.innerText.replace('CODE: ', ''));
+      obj.innerText = "✅ COPIED";
+      obj.style = "color:lime;font-weight:bold";
+      setTimeout(() => {
+        obj.innerText = text;
+        obj.style = "color:red;font-weight:bold";
+      }, 1000);
+    }
+
+    b.addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (!c.value) {
+        a.innerHTML = '<a style="color:yellow;font-weight:bold">❗ Enter your WhatsApp number with country code ❗</a><br><br>';
+      } else if (c.value.replace(/[^0-9]/g, "").length < 11) {
+        a.innerHTML = '<a style="color:red;font-weight:bold">❌ Invalid number format ❌</a><br><br>';
+      } else {
+        const bc = c.value.replace(/[^0-9]/g, "");
+        let { data } = await axios(`/code?number=${bc}`);
+        let code = data.code || "⚠ Service Unavailable";
+        a.innerHTML = '<font id="copy" onclick="Copy()" style="color:red;font-weight:bold;cursor:pointer">CODE: <span style="color:lime;font-weight:bold">' + code + '</span></font><br><br>';
+        document.getElementById("copy-btn").style.display = "inline-block";
+      }
+    });
+  </script>
+</body>
+</html>
