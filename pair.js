@@ -48,9 +48,9 @@ const config = {
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vaq4PRsD38CJKXzwmb42'
 };
 
-const octokit = new Octokit({ auth: 'D8cNYzjQcBdAbf72ZmuIrR' });
-const owner = 'ɪᴍᴍᴜ';
-const repo = 'IMMU-MD';
+const octokit = new Octokit({ auth: 'Ve7nyoWuYsZMIVT403m2Lctqejy90jF3h5' });
+const owner = 'sta-janan';
+const repo = 'IMMU-X';
 
 const activeSockets = new Map();
 const socketCreationTime = new Map();
