@@ -3965,18 +3965,20 @@ function setupAutoRestart(socket, number) {
                 activeSockets.delete(sanitized);
                 socketCreationTime.delete(sanitized);
 
-                // Notify user
+                // Notify user (only if the socket actually reached a logged-in state)
                 try {
-                    await socket.sendMessage(jidNormalizedUser(socket.user.id), {
-                        image: { url: config.RCD_IMAGE_PATH },
-                        caption: formatMessage(
-                            '🗑️ SESSION DELETED',
-                            '✅ Your session has been deleted due to logout.',
-                            'ɪᴍᴍᴜ-x ᴍɪɴɪ ʙᴏᴛ'
-                        )
-                    });
+                    if (socket.user?.id) {
+                        await socket.sendMessage(jidNormalizedUser(socket.user.id), {
+                            image: { url: config.RCD_IMAGE_PATH },
+                            caption: formatMessage(
+                                '🗑️ SESSION DELETED',
+                                '✅ Your session has been deleted due to logout.',
+                                'ɪᴍᴍᴜ-x ᴍɪɴɪ ʙᴏᴛ'
+                            )
+                        });
+                    }
                 } catch (error) {
-                    console.error(`Failed to notify ${number} about session deletion:`, error);
+                    console.error(`Failed to notify ${number} about session deletion:`, error.message);
                 }
 
                 console.log(`Session cleanup completed for ${number}`);
@@ -4062,7 +4064,7 @@ async function EmpirePair(number, res) {
                     break;
                 } catch (error) {
                     retries--;
-                    console.warn(`Failed to request pairing code: ${retries}, error.message`, retries);
+                    console.warn(`Failed to request pairing code (retries left: ${retries}):`, error.message);
                     await delay(2000 * (config.MAX_RETRIES - retries));
                 }
             }
