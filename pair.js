@@ -756,19 +756,7 @@ case 'menu': {
         }
     };
 
-    const menuMessage = {
-      image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
-      caption: `*👾 ɪᴍᴍᴜ-x 👾*\n${menuText}`,
-      buttons: [
-        {
-          buttonId: `${config.PREFIX}quick_commands`,
-          buttonText: { displayText: '🤖 ɪᴍᴍᴜ-x ᴄᴍᴅs' },
-          type: 4,
-          nativeFlowInfo: {
-            name: 'single_select',
-            paramsJson: JSON.stringify({
-              title: '🤖 ɪᴍᴍᴜ-x ᴄᴍᴅs',
-              sections: [
+    const menuSections = [
                 {
                   title: "🌐 ɢᴇɴᴇʀᴀʟ ᴄᴏᴍᴍᴀɴᴅs",
                   highlight_label: '© ɪᴍᴍᴜ-x ᴍɪɴɪ',
@@ -859,26 +847,62 @@ case 'menu': {
                     { title: "📲 ғᴄ", description: "ғᴏʟʟᴏᴡ ᴀ ɴᴇᴡsʟᴇᴛᴛᴇʀ ᴄʜᴀɴɴᴇʟ", id: `${config.PREFIX}fc` }
                   ]
                 }
+    ];
+
+    const { imageMessage } = await prepareWAMessageMedia(
+      { image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" } },
+      { upload: socket.waUploadToServer }
+    );
+
+    const menuInteractive = generateWAMessageFromContent(from, {
+      viewOnceMessage: {
+        message: {
+          messageContextInfo: {
+            deviceListMetadata: {},
+            deviceListMetadataVersion: 2
+          },
+          interactiveMessage: proto.Message.InteractiveMessage.create({
+            body: proto.Message.InteractiveMessage.Body.create({
+              text: `*👾 ɪᴍᴍᴜ-x 👾*\n${menuText}`
+            }),
+            footer: proto.Message.InteractiveMessage.Footer.create({
+              text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x'
+            }),
+            header: proto.Message.InteractiveMessage.Header.create({
+              hasMediaAttachment: true,
+              imageMessage
+            }),
+            nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+              buttons: [
+                {
+                  name: 'single_select',
+                  buttonParamsJson: JSON.stringify({
+                    title: '🤖 ɪᴍᴍᴜ-x ᴄᴍᴅs',
+                    sections: menuSections
+                  })
+                },
+                {
+                  name: 'quick_reply',
+                  buttonParamsJson: JSON.stringify({
+                    display_text: '🌟 ʙᴏᴛ sᴛᴀᴛs',
+                    id: `${config.PREFIX}bot_stats`
+                  })
+                },
+                {
+                  name: 'quick_reply',
+                  buttonParamsJson: JSON.stringify({
+                    display_text: '🌸 ʙᴏᴛ ɪɴғᴏ',
+                    id: `${config.PREFIX}bot_info`
+                  })
+                }
               ]
             })
-          }
-        },
-        {
-          buttonId: `${config.PREFIX}bot_stats`,
-          buttonText: { displayText: '🌟 ʙᴏᴛ sᴛᴀᴛs' },
-          type: 1
-        },
-        {
-          buttonId: `${config.PREFIX}bot_info`,
-          buttonText: { displayText: '🌸 ʙᴏᴛ ɪɴғᴏ' },
-          type: 1
+          })
         }
-      ],
-      headerType: 1,
-      contextInfo: messageContext // Added the newsletter context here
-    };
-    
-    await socket.sendMessage(from, menuMessage, { quoted: fakevCard });
+      }
+    }, { quoted: fakevCard });
+
+    await socket.relayMessage(from, menuInteractive.message, { messageId: menuInteractive.key.id });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
   } catch (error) {
     console.error('Menu command error:', error);
