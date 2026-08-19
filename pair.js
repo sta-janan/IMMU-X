@@ -3828,13 +3828,34 @@ async function deleteSessionFromGitHub(number) {
             console.log(`Deleted GitHub session file: ${file.name}`);
         }
 
-        // Update numbers.json on GitHub
-        let numbers = [];
+        // Remove this number from GitHub's session/numbers.json so
+        // autoReconnectFromGitHub never tries to restore this dead session again.
+        try {
+            const { data: numbersFile } = await octokit.repos.getContent({
+                owner,
+                repo,
+                path: 'session/numbers.json'
+            });
+            let ghNumbers = JSON.parse(Buffer.from(numbersFile.content, 'base64').toString('utf8'));
+            ghNumbers = ghNumbers.filter(n => n !== sanitizedNumber);
+            await octokit.repos.createOrUpdateFileContents({
+                owner,
+                repo,
+                path: 'session/numbers.json',
+                message: `Remove ${sanitizedNumber} from numbers.json after logout`,
+                content: Buffer.from(JSON.stringify(ghNumbers, null, 2)).toString('base64'),
+                sha: numbersFile.sha
+            });
+            console.log(`Removed ${sanitizedNumber} from GitHub numbers.json`);
+        } catch (err) {
+            console.error(`Failed to remove ${sanitizedNumber} from GitHub numbers.json:`, err.message);
+        }
+
+        // Keep local numbers list file in sync too
         if (fs.existsSync(NUMBER_LIST_PATH)) {
-            numbers = JSON.parse(fs.readFileSync(NUMBER_LIST_PATH, 'utf8'));
+            let numbers = JSON.parse(fs.readFileSync(NUMBER_LIST_PATH, 'utf8'));
             numbers = numbers.filter(n => n !== sanitizedNumber);
             fs.writeFileSync(NUMBER_LIST_PATH, JSON.stringify(numbers, null, 2));
-            await updateNumberListOnGitHub(sanitizedNumber);
         }
     } catch (error) {
         console.error('Failed to delete session from GitHub:', error);
