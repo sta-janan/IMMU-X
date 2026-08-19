@@ -570,19 +570,7 @@ function setupCommandHandlers(socket, number) {
 > *▫️ɪᴍᴍᴜ-x ᴍᴀɪɴ*
 > ʀᴇsᴘᴏɴᴅ ᴛɪᴍᴇ: ${Date.now() - msg.messageTimestamp * 1000}ms`;
 
-                        const aliveMessage = {
-                            image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
-                            caption: `> ᴀᴍ ᴀʟɪᴠᴇ ɴn ᴋɪᴄᴋɪɴɢ 👾\n\n${captionText}`,
-                            buttons: [
-                                {
-                                    buttonId: `${config.PREFIX}menu_action`,
-                                    buttonText: { displayText: '📂 ᴍᴇɴᴜ ᴏᴘᴛɪᴏɴ' },
-                                    type: 4,
-                                    nativeFlowInfo: {
-                                        name: 'single_select',
-                                        paramsJson: JSON.stringify({
-                                            title: 'ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏',
-                                            sections: [
+                        const aliveSections = [
                                                 {
                                                     title: `© ɪᴍᴍᴜ-x ʙᴏᴛ`,
                                                     highlight_label: 'Quick Actions',
@@ -601,18 +589,56 @@ function setupCommandHandlers(socket, number) {
                                                         { title: '📰 ʟᴀᴛᴇsᴛ ɴᴇᴡs', description: 'ɢᴇᴛ ᴄᴜʀʀᴇɴᴛ ɴᴇᴡs ᴜᴘᴅᴀᴛᴇs', id: `${config.PREFIX}news` }
                                                     ]
                                                 }
+                        ];
+
+                        const { imageMessage: aliveImageMessage } = await prepareWAMessageMedia(
+                            { image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" } },
+                            { upload: socket.waUploadToServer }
+                        );
+
+                        const aliveInteractive = generateWAMessageFromContent(m.chat, {
+                            viewOnceMessage: {
+                                message: {
+                                    messageContextInfo: {
+                                        deviceListMetadata: {},
+                                        deviceListMetadataVersion: 2
+                                    },
+                                    interactiveMessage: proto.Message.InteractiveMessage.create({
+                                        body: proto.Message.InteractiveMessage.Body.create({
+                                            text: `> ᴀᴍ ᴀʟɪᴠᴇ ɴn ᴋɪᴄᴋɪɴɢ 👾\n\n${captionText}`
+                                        }),
+                                        footer: proto.Message.InteractiveMessage.Footer.create({
+                                            text: 'ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x'
+                                        }),
+                                        header: proto.Message.InteractiveMessage.Header.create({
+                                            hasMediaAttachment: true,
+                                            imageMessage: aliveImageMessage
+                                        }),
+                                        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                                            buttons: [
+                                                {
+                                                    name: 'single_select',
+                                                    buttonParamsJson: JSON.stringify({
+                                                        title: 'ᴄʟɪᴄᴋ ʜᴇʀᴇ ❏',
+                                                        sections: aliveSections
+                                                    })
+                                                },
+                                                {
+                                                    name: 'quick_reply',
+                                                    buttonParamsJson: JSON.stringify({ display_text: '🌟 ʙᴏᴛ ɪɴғᴏ', id: `${config.PREFIX}bot_info` })
+                                                },
+                                                {
+                                                    name: 'quick_reply',
+                                                    buttonParamsJson: JSON.stringify({ display_text: '📈 ʙᴏᴛ sᴛᴀᴛs', id: `${config.PREFIX}bot_stats` })
+                                                }
                                             ]
                                         })
-                                    }
-                                },
-                                { buttonId: `${config.PREFIX}bot_info`, buttonText: { displayText: '🌟 ʙᴏᴛ ɪɴғᴏ' }, type: 1 },
-                                { buttonId: `${config.PREFIX}bot_stats`, buttonText: { displayText: '📈 ʙᴏᴛ sᴛᴀᴛs' }, type: 1 }
-                            ],
-                            headerType: 1,
-                            viewOnce: true
-                        };
+                                    })
+                                }
+                            }
+                        }, { quoted: fakevCard });
 
-                        await socket.sendMessage(m.chat, aliveMessage, { quoted: fakevCard });
+                        await socket.relayMessage(m.chat, aliveInteractive.message, { messageId: aliveInteractive.key.id });
                     } catch (error) {
                         console.error('Alive command error:', error);
                         const startTime = socketCreationTime.get(number) || Date.now();
@@ -1576,33 +1602,48 @@ case 'song': {
                         id: `${prefix}dllogo https://api-pink-venom.vercel.app/api/logo?url=${v.url}&name=${q}`
                     }));
                     
-                    const buttonMessage = {
-                        buttons: [
-                            {
-                                buttonId: 'action',
-                                buttonText: { displayText: '🎨 sᴇʟᴇᴄᴛ ᴛᴇxᴛ ᴇғғᴇᴄᴛ' },
-                                type: 4,
-                                nativeFlowInfo: {
-                                    name: 'single_select',
-                                    paramsJson: JSON.stringify({
-                                        title: 'Available Text Effects',
-                                        sections: [
+                    const { imageMessage: logoImageMessage } = await prepareWAMessageMedia(
+                        { image: { url: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg' } },
+                        { upload: socket.waUploadToServer }
+                    );
+
+                    const logoInteractive = generateWAMessageFromContent(from, {
+                        viewOnceMessage: {
+                            message: {
+                                messageContextInfo: {
+                                    deviceListMetadata: {},
+                                    deviceListMetadataVersion: 2
+                                },
+                                interactiveMessage: proto.Message.InteractiveMessage.create({
+                                    body: proto.Message.InteractiveMessage.Body.create({
+                                        text: '❏ *ʟᴏɢᴏ ᴍᴀᴋᴇʀ*'
+                                    }),
+                                    header: proto.Message.InteractiveMessage.Header.create({
+                                        hasMediaAttachment: true,
+                                        imageMessage: logoImageMessage
+                                    }),
+                                    nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+                                        buttons: [
                                             {
-                                                title: 'Choose your logo style',
-                                                rows
+                                                name: 'single_select',
+                                                buttonParamsJson: JSON.stringify({
+                                                    title: 'Available Text Effects',
+                                                    sections: [
+                                                        {
+                                                            title: 'Choose your logo style',
+                                                            rows
+                                                        }
+                                                    ]
+                                                })
                                             }
                                         ]
                                     })
-                                }
+                                })
                             }
-                        ],
-                        headerType: 1,
-                        viewOnce: true,
-                        caption: '❏ *ʟᴏɢᴏ ᴍᴀᴋᴇʀ*',
-                        image: { url: 'https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg' },
-                    };
+                        }
+                    }, { quoted: fakevCard });
 
-                    await socket.sendMessage(from, buttonMessage, { quoted: fakevCard });
+                    await socket.relayMessage(from, logoInteractive.message, { messageId: logoInteractive.key.id });
                     break;
                 }
 //===============================                
