@@ -3924,7 +3924,9 @@ function setupAutoRestart(socket, number) {
     socket.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
+            const sanitized = number.replace(/[^0-9]/g, '');
             const statusCode = lastDisconnect?.error?.output?.statusCode;
+
             if (statusCode === 401) { // 401 indicates user-initiated logout
                 console.log(`User ${number} logged out. Deleting session...`);
                 
@@ -3932,15 +3934,15 @@ function setupAutoRestart(socket, number) {
                 await deleteSessionFromGitHub(number);
                 
                 // Delete local session folder
-                const sessionPath = path.join(SESSION_BASE_PATH, `session_${number.replace(/[^0-9]/g, '')}`);
+                const sessionPath = path.join(SESSION_BASE_PATH, `session_${sanitized}`);
                 if (fs.existsSync(sessionPath)) {
                     fs.removeSync(sessionPath);
                     console.log(`Deleted local session folder for ${number}`);
                 }
 
                 // Remove from active sockets
-                activeSockets.delete(number.replace(/[^0-9]/g, ''));
-                socketCreationTime.delete(number.replace(/[^0-9]/g, ''));
+                activeSockets.delete(sanitized);
+                socketCreationTime.delete(sanitized);
 
                 // Notify user
                 try {
@@ -3957,12 +3959,19 @@ function setupAutoRestart(socket, number) {
                 }
 
                 console.log(`Session cleanup completed for ${number}`);
+            } else if (statusCode === 440) {
+                // connectionReplaced: another socket took over this same session.
+                // Do NOT auto-reconnect here — reconnecting would just fight the
+                // other socket again and cause an infinite conflict loop.
+                console.log(`Session for ${number} was replaced by another connection (code 440). Not auto-reconnecting to avoid a conflict loop.`);
+                activeSockets.delete(sanitized);
+                socketCreationTime.delete(sanitized);
             } else {
-                // Existing reconnect logic
+                // Existing reconnect logic (genuine temporary disconnects only)
                 console.log(`Connection lost for ${number}, attempting to reconnect...`);
                 await delay(10000);
-                activeSockets.delete(number.replace(/[^0-9]/g, ''));
-                socketCreationTime.delete(number.replace(/[^0-9]/g, ''));
+                activeSockets.delete(sanitized);
+                socketCreationTime.delete(sanitized);
                 const mockRes = { headersSent: false, send: () => {}, status: () => mockRes };
                 await EmpirePair(number, mockRes);
             }
@@ -3973,6 +3982,22 @@ function setupAutoRestart(socket, number) {
 async function EmpirePair(number, res) {
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
     const sessionPath = path.join(SESSION_BASE_PATH, `session_${sanitizedNumber}`);
+
+    // Prevent duplicate simultaneous sockets for the same number
+    // (fixes repeated "conflict/replaced" errors and forced logouts)
+    if (activeSockets.has(sanitizedNumber)) {
+        console.log(`⚠️ Socket already active for ${sanitizedNumber}, closing old one before reconnecting...`);
+        try {
+            const oldSocket = activeSockets.get(sanitizedNumber);
+            oldSocket.ev.removeAllListeners();
+            oldSocket.end(undefined);
+        } catch (err) {
+            console.warn(`Failed to close old socket for ${sanitizedNumber}:`, err.message);
+        }
+        activeSockets.delete(sanitizedNumber);
+        socketCreationTime.delete(sanitizedNumber);
+        await delay(1000);
+    }
 
     await cleanDuplicateFiles(sanitizedNumber);
 
