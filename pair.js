@@ -48,7 +48,7 @@ const config = {
     CHANNEL_LINK: 'https://whatsapp.com/channel/0029Vaq4PRsD38CJKXzwmb42'
 };
 
-const octokit = new Octokit({ auth: 'Ve7nyoWuYsZMIVT403m2Lctqejy90jF3h5' });
+const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 const owner = 'sta-janan';
 const repo = 'IMMU-X';
 
