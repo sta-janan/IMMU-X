@@ -58,6 +58,25 @@ const SESSION_BASE_PATH = './session';
 const NUMBER_LIST_PATH = './numbers.json';
 const otpStore = new Map();
 
+// Shared downloader for TikTok / Instagram / Facebook via the self-hosted
+// immu-md-api (no third-party API key required).
+const IMMU_MD_API = (process.env.SMD_SITE_URL || 'https://immu-md-api.vercel.app').replace(/\/+$/, '');
+async function immuMdDownload(url) {
+    const { data } = await axios.post(
+        `${IMMU_MD_API}/api/download`,
+        { url, type: 'video' },
+        { timeout: 90000, headers: { 'Content-Type': 'application/json' } }
+    );
+    if (!data || !data.success) {
+        throw new Error(data?.error || 'Media could not be fetched');
+    }
+    return data;
+}
+function immuMdFullUrl(u) {
+    if (!u) return null;
+    return u.startsWith('/') ? IMMU_MD_API + u : u;
+}
+
 if (!fs.existsSync(SESSION_BASE_PATH)) {
     fs.mkdirSync(SESSION_BASE_PATH, { recursive: true });
 }
@@ -1582,179 +1601,56 @@ case 'song': {
                     }
                 
 case 'tiktok': {
-const axios = require('axios');
-
-// Optimized axios instance
-const axiosInstance = axios.create({
-  timeout: 15000,
-  maxRedirects: 5,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-  }
-});
-
-// TikTok API configuration
-const TIKTOK_API_KEY = process.env.TIKTOK_API_KEY || 'free_key@maher_apis'; // Fallback for testing
   try {
-    // Get query from message
     const q = msg.message?.conversation ||
               msg.message?.extendedTextMessage?.text ||
               msg.message?.imageMessage?.caption ||
               msg.message?.videoMessage?.caption || '';
 
-    // Validate and sanitize URL
-    const tiktokUrl = q.trim();
-    const urlRegex = /(?:https?:\/\/)?(?:www\.)?(?:tiktok\.com|vm\.tiktok\.com)\/[@a-zA-Z0-9_\-\.\/]+/;
-    if (!tiktokUrl || !urlRegex.test(tiktokUrl)) {
+    const urlMatch = q.trim().match(/https?:\/\/[^\s]+/i);
+    if (!urlMatch || !/tiktok\.com/.test(urlMatch[0])) {
       await socket.sendMessage(sender, {
         text: '📥 *ᴜsᴀɢᴇ:* .tiktok <TikTok URL>\nExample: .tiktok https://www.tiktok.com/@user/video/123456789'
       }, { quoted: fakevCard });
-      return;
+      break;
     }
 
-    // Send downloading reaction
-    try {
-      await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
-    } catch (reactError) {
-      console.error('Reaction error:', reactError);
-    }
+    await socket.sendMessage(sender, { react: { text: '⏳', key: msg.key } });
+    const data = await immuMdDownload(urlMatch[0]);
+    const meta = data.metadata || {};
+    const images = (meta.images || []).map(i => i.url).filter(Boolean);
 
-    // Try primary API
-    let data;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-      const res = await axiosInstance.get(`https://api.nexoracle.com/downloader/tiktok-nowm?apikey=${TIKTOK_API_KEY}&url=${encodeURIComponent(tiktokUrl)}`, {
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (res.data?.status === 200) {
-        data = res.data.result;
+    if ((meta.isPhotoCarousel || images.length > 0) && !data.downloadUrl) {
+      if (!images.length) {
+        await socket.sendMessage(sender, { text: '❌ No images found.' }, { quoted: fakevCard });
+        break;
       }
-    } catch (primaryError) {
-      console.error('Primary API error:', primaryError.message);
-    }
-
-    // Fallback API
-    if (!data) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-        const fallback = await axiosInstance.get(`https://api.tikwm.com/?url=${encodeURIComponent(tiktokUrl)}&hd=1`, {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (fallback.data?.data) {
-          const r = fallback.data.data;
-          data = {
-            title: r.title || 'No title',
-            author: {
-              username: r.author?.unique_id || 'Unknown',
-              nickname: r.author?.nickname || 'Unknown'
-            },
-            metrics: {
-              digg_count: r.digg_count || 0,
-              comment_count: r.comment_count || 0,
-              share_count: r.share_count || 0,
-              download_count: r.download_count || 0
-            },
-            url: r.play || '',
-            thumbnail: r.cover || ''
-          };
-        }
-      } catch (fallbackError) {
-        console.error('Fallback API error:', fallbackError.message);
+      const max = Math.min(images.length, 15);
+      for (let i = 0; i < max; i++) {
+        await socket.sendMessage(sender, {
+          image: { url: immuMdFullUrl(images[i]) },
+          caption: i === 0 ? `🎵 *TIKTOK*${meta.author ? `\n👤 ${meta.author}` : ''}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x` : undefined
+        }, { quoted: fakevCard });
+        await delay(600);
       }
-    }
-
-    if (!data || !data.url) {
-      await socket.sendMessage(sender, { text: '❌ TikTok video not found.' }, { quoted: fakevCard });
-      return;
-    }
-
-    const { title, author, url, metrics, thumbnail } = data;
-
-    // Prepare caption
-    const caption = `
-*┏────〘 ɪᴍᴍᴜ-x ᴛɪᴋᴛᴏᴋ 〙───⊷*
-*┃*  📝 ᴛɪᴛᴛʟᴇ: ${title.replace(/[<>:"\/\\|?*]/g, '')}
-*┃*  👤 ᴀᴜᴛʜᴏʀ: @${author.username.replace(/[<>:"\/\\|?*]/g, '')} (${author.nickname.replace(/[<>:"\/\\|?*]/g, '')})
-*┃*  ❤️ ʟɪᴋᴇs: ${metrics.digg_count.toLocaleString()}
-*┃*  💬 ᴄᴏᴍᴍᴇɴᴛs: ${metrics.comment_count.toLocaleString()}
-*┃*  🔁 sʜᴀʀᴇs: ${metrics.share_count.toLocaleString()}
-*┃*  📥 ᴅᴏᴡɴʟᴏᴀᴅs: ${metrics.download_count.toLocaleString()}
-*┗──────────────⊷*
-> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`;
-
-    // Send thumbnail with info
-    await socket.sendMessage(sender, {
-      image: { url: thumbnail || 'https://i.ibb.co/ynmqJG8j/vision-v.jpg' }, // Fallback image
-      caption
-    }, { quoted: fakevCard });
-
-    // Download video
-    const loading = await socket.sendMessage(sender, { text: '⏳ Downloading video...' }, { quoted: fakevCard });
-    let videoBuffer;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-      const response = await axiosInstance.get(url, {
-        responseType: 'arraybuffer',
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      videoBuffer = Buffer.from(response.data, 'binary');
-
-      // Basic size check (e.g., max 50MB)
-      if (videoBuffer.length > 50 * 1024 * 1024) {
-        throw new Error('Video file too large');
-      }
-    } catch (downloadError) {
-      console.error('Video download error:', downloadError.message);
-      await socket.sendMessage(sender, { text: '❌ Failed to download video.' }, { quoted: fakevCard });
-      await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-      return;
-    }
-
-    // Send video
-    await socket.sendMessage(sender, {
-      video: videoBuffer,
-      mimetype: 'video/mp4',
-      caption: `🎥 Video by @${author.username.replace(/[<>:"\/\\|?*]/g, '')}\n> ᴍᴀᴅᴇ ʙʏ ɪᴍᴍᴜ-x`
-    }, { quoted: fakevCard });
-
-    // Update loading message
-    await socket.sendMessage(sender, { text: '✅ Video sent!', edit: loading.key });
-
-    // Send success reaction
-    try {
       await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
-    } catch (reactError) {
-      console.error('Success reaction error:', reactError);
+      break;
     }
 
-  } catch (error) {
-    console.error('TikTok command error:', {
-      error: error.message,
-      stack: error.stack,
-      url: tiktokUrl,
-      sender
-    });
-
-    let errorMessage = '❌ Failed to download TikTok video. Please try again.';
-    if (error.name === 'AbortError') {
-      errorMessage = '❌ Download timed out. Please try again.';
+    if (!data.downloadUrl) {
+      await socket.sendMessage(sender, { text: '❌ Download URL not available (post may be private).' }, { quoted: fakevCard });
+      break;
     }
 
-    await socket.sendMessage(sender, { text: errorMessage }, { quoted: fakevCard });
-    try {
-      await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
-    } catch (reactError) {
-      console.error('Error reaction error:', reactError);
-    }
+    await socket.sendMessage(sender, {
+      video: { url: immuMdFullUrl(data.downloadUrl) },
+      mimetype: 'video/mp4',
+      caption: `🎵 *TIKTOK*${meta.author ? `\n👤 ${meta.author}` : ''}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`
+    }, { quoted: fakevCard });
+    await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+  } catch (e) {
+    console.error('TikTok command error:', e.message);
+    await socket.sendMessage(sender, { text: `❌ Download failed: ${e.message}` }, { quoted: fakevCard });
   }
   break;
 }
@@ -1987,8 +1883,6 @@ case "lovequote": {
 }
 //===============================
                 case 'fb': {
-                    const axios = require('axios');                   
-                    
                     const q = msg.message?.conversation || 
                               msg.message?.extendedTextMessage?.text || 
                               msg.message?.imageMessage?.caption || 
@@ -1998,25 +1892,29 @@ case "lovequote": {
                     const fbUrl = q?.trim();
 
                     if (!/facebook\.com|fb\.watch/.test(fbUrl)) {
-                        return await socket.sendMessage(sender, { text: '🧩 *Give me a real Facebook video link, darling 😘*' });
+                        return await socket.sendMessage(sender, { text: '🧩 *Give me a real Facebook video link*' });
                     }
 
                     try {
-                        const res = await axios.get(`https://suhas-bro-api.vercel.app/download/fbdown?url=${encodeURIComponent(fbUrl)}`);
-                        const result = res.data.result;
-
                         await socket.sendMessage(sender, { react: { text: '⬇', key: msg.key } });
+                        const data = await immuMdDownload(fbUrl);
+                        const meta = data.metadata || {};
+
+                        if (!data.downloadUrl) {
+                            await socket.sendMessage(sender, { text: '❌ Download URL not available (this video may be private).' }, { quoted: fakevCard });
+                            break;
+                        }
 
                         await socket.sendMessage(sender, {
-                            video: { url: result.sd },
+                            video: { url: immuMdFullUrl(data.downloadUrl) },
                             mimetype: 'video/mp4',
-                            caption: '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x'
+                            caption: `📘 *FACEBOOK*${meta.author ? `\n👤 ${meta.author}` : ''}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`
                         }, { quoted: fakevCard });
 
                         await socket.sendMessage(sender, { react: { text: '✔', key: msg.key } });
                     } catch (e) {
-                        console.log(e);
-                        await socket.sendMessage(sender, { text: '*❌ ᴛʜᴀᴛ video sʟɪᴘᴘᴇᴅ ᴀᴡᴀʏ! ᴛʀʏ ᴀɢᴀɪɴ? 💔*' });
+                        console.error('FB command error:', e.message);
+                        await socket.sendMessage(sender, { text: `❌ Download failed: ${e.message}` });
                     }
                     break;
                 }
@@ -2247,11 +2145,6 @@ case "lovequote": {
                 }
 //===============================
                 case 'ig': {
-                await socket.sendMessage(sender, { react: { text: '✅️', key: msg.key } });
-                    const axios = require('axios');
-                    const { igdl } = require('ruhend-scraper'); 
-                        
-
                     const q = msg.message?.conversation || 
                               msg.message?.extendedTextMessage?.text || 
                               msg.message?.imageMessage?.caption || 
@@ -2266,26 +2159,42 @@ case "lovequote": {
 
                     try {
                         await socket.sendMessage(sender, { react: { text: '⬇', key: msg.key } });
+                        const data = await immuMdDownload(igUrl);
+                        const meta = data.metadata || {};
+                        const images = (meta.images || []).map(i => i.url).filter(Boolean);
 
-                        const res = await igdl(igUrl);
-                        const data = res.data; 
-
-                        if (data && data.length > 0) {
-                            const videoUrl = data[0].url; 
-
-                            await socket.sendMessage(sender, {
-                                video: { url: videoUrl },
-                                mimetype: 'video/mp4',
-                                caption: '> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x'
-                            }, { quoted: fakevCard });
-
+                        if ((meta.isPhotoCarousel || images.length > 0) && !data.downloadUrl) {
+                            if (!images.length) {
+                                await socket.sendMessage(sender, { text: '❌ No images found.' }, { quoted: fakevCard });
+                                break;
+                            }
+                            const max = Math.min(images.length, 15);
+                            for (let i = 0; i < max; i++) {
+                                await socket.sendMessage(sender, {
+                                    image: { url: immuMdFullUrl(images[i]) },
+                                    caption: i === 0 ? `📸 *INSTAGRAM*${meta.author ? `\n👤 ${meta.author}` : ''}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x` : undefined
+                                }, { quoted: fakevCard });
+                                await delay(600);
+                            }
                             await socket.sendMessage(sender, { react: { text: '✔', key: msg.key } });
-                        } else {
-                            await socket.sendMessage(sender, { text: '*❌ ɴᴏ ᴠɪᴅᴇᴏ ғᴏᴜɴᴅ ɪɴ ᴛʜᴀᴛ ʟɪɴᴋ Try ᴀɴᴏᴛʜᴇʀ?*' });
+                            break;
                         }
+
+                        if (!data.downloadUrl) {
+                            await socket.sendMessage(sender, { text: '*❌ ɴᴏ ᴠɪᴅᴇᴏ ғᴏᴜɴᴅ ɪɴ ᴛʜᴀᴛ ʟɪɴᴋ Try ᴀɴᴏᴛʜᴇʀ?*' });
+                            break;
+                        }
+
+                        await socket.sendMessage(sender, {
+                            video: { url: immuMdFullUrl(data.downloadUrl) },
+                            mimetype: 'video/mp4',
+                            caption: `📸 *INSTAGRAM*${meta.author ? `\n👤 ${meta.author}` : ''}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`
+                        }, { quoted: fakevCard });
+
+                        await socket.sendMessage(sender, { react: { text: '✔', key: msg.key } });
                     } catch (e) {
-                        console.log(e);
-                        await socket.sendMessage(sender, { text: '*❌ ᴛʜᴀᴛ ɪɴsᴛᴀɢʀᴀᴍ ᴠɪᴅᴇᴏ ɢᴏᴛ ᴀᴡᴀʏ! 😢*' });
+                        console.error('IG command error:', e.message);
+                        await socket.sendMessage(sender, { text: `❌ Download failed: ${e.message}` });
                     }
                     break;
                 }
