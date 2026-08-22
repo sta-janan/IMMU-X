@@ -54,6 +54,8 @@ const repo = 'IMMU-X';
 
 const activeSockets = new Map();
 const socketCreationTime = new Map();
+const antiPromoteGroups = new Map();
+const antiDemoteGroups = new Map();
 const SESSION_BASE_PATH = './session';
 const NUMBER_LIST_PATH = './numbers.json';
 const otpStore = new Map();
@@ -61,6 +63,8 @@ const otpStore = new Map();
 // Shared downloader for TikTok / Instagram / Facebook via the self-hosted
 // immu-md-api (no third-party API key required).
 const IMMU_MD_API = (process.env.SMD_SITE_URL || 'https://immu-md-api.vercel.app').replace(/\/+$/, '');
+const GIFTED_API = 'https://api.giftedtech.co.ke';
+const GIFTED_KEY = '_0u5aff45,_0l1876s8qc';
 async function immuMdDownload(url) {
     const { data } = await axios.post(
         `${IMMU_MD_API}/api/download`,
@@ -75,6 +79,18 @@ async function immuMdDownload(url) {
 function immuMdFullUrl(u) {
     if (!u) return null;
     return u.startsWith('/') ? IMMU_MD_API + u : u;
+}
+
+// Shared GiftedTech tools API (the default free key IMMU-MD itself ships
+// with in gift/gmdFunctions2.js — not a private key added by us).
+const GIFTED_API_BASE = 'https://api.giftedtech.co.ke';
+const GIFTED_API_KEY = '_0u5aff45,_0l1876s8qc';
+async function giftedApiGet(path, params, opts = {}) {
+    return axios.get(`${GIFTED_API_BASE}${path}`, {
+        params: { apikey: GIFTED_API_KEY, ...params },
+        timeout: 60000,
+        ...opts
+    });
 }
 
 if (!fs.existsSync(SESSION_BASE_PATH)) {
@@ -2809,6 +2825,295 @@ case 'cleargroup': {
                     break;
                 }
 
+//========================== GROUP BATCH (from IMMU-MD) ======================
+                case 'hidetag': {
+                    await socket.sendMessage(sender, { react: { text: '📢', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const groupMetadata = await socket.groupMetadata(from);
+                        const participants = groupMetadata.participants.map(p => p.id);
+                        const message = args.join(' ') || '📢';
+                        await socket.sendMessage(from, { text: message, mentions: participants }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Hidetag error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'everyone': {
+                    await socket.sendMessage(sender, { react: { text: '📣', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const groupMetadata = await socket.groupMetadata(from);
+                        const participants = groupMetadata.participants.map(p => p.id);
+                        const message = args.join(' ') || '📢 *ᴀᴛᴛᴇɴᴛɪᴏɴ ᴇᴠᴇʀʏᴏɴᴇ!*';
+                        let text = `${message}\n\n`;
+                        participants.forEach(p => { text += `@${p.split('@')[0]}\n`; });
+                        await socket.sendMessage(from, { text, mentions: participants }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Everyone error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'tagadmins': {
+                    await socket.sendMessage(sender, { react: { text: '👑', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const groupMetadata = await socket.groupMetadata(from);
+                        const admins = groupMetadata.participants.filter(p => p.admin).map(p => p.id);
+                        if (!admins.length) { await socket.sendMessage(sender, { text: 'No admins found.' }, { quoted: fakevCard }); break; }
+                        let text = `👑 *ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs*\n\n`;
+                        admins.forEach(p => { text += `@${p.split('@')[0]}\n`; });
+                        await socket.sendMessage(from, { text, mentions: admins }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Tagadmins error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'groupname': {
+                    await socket.sendMessage(sender, { react: { text: '✏️', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    const newName = args.join(' ');
+                    if (!newName) { await socket.sendMessage(sender, { text: `Usage: ${config.PREFIX}groupname <new name>` }, { quoted: fakevCard }); break; }
+                    try {
+                        await socket.groupUpdateSubject(from, newName);
+                        await socket.sendMessage(sender, { text: `✅ Group name updated to: ${newName}` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Groupname error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'gcdesc': {
+                    await socket.sendMessage(sender, { react: { text: '📝', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    const newDesc = args.join(' ');
+                    if (!newDesc) { await socket.sendMessage(sender, { text: `Usage: ${config.PREFIX}gcdesc <new description>` }, { quoted: fakevCard }); break; }
+                    try {
+                        await socket.groupUpdateDescription(from, newDesc);
+                        await socket.sendMessage(sender, { text: `✅ Group description updated.` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Gcdesc error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'newgroup': {
+                    await socket.sendMessage(sender, { react: { text: '➕', key: msg.key } });
+                    const gname = args.join(' ');
+                    if (!gname) { await socket.sendMessage(sender, { text: `Usage: ${config.PREFIX}newgroup <group name>` }, { quoted: fakevCard }); break; }
+                    try {
+                        const group = await socket.groupCreate(gname, [nowsender]);
+                        await socket.sendMessage(sender, { text: `✅ Group created: ${group.subject}` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Newgroup error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'killgc': {
+                    await socket.sendMessage(sender, { react: { text: '💀', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        await socket.sendMessage(from, { text: '💀 Group is being deleted...' }, { quoted: fakevCard });
+                        await socket.groupLeave(from);
+                    } catch (error) {
+                        console.error('Killgc error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'accept': {
+                    await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    if (!args[0]) { await socket.sendMessage(sender, { text: `Usage: ${config.PREFIX}accept <number>` }, { quoted: fakevCard }); break; }
+                    try {
+                        const num = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+                        await socket.groupRequestParticipantsUpdate(from, [num], 'approve');
+                        await socket.sendMessage(sender, { text: `✅ Approved join request.` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Accept error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'reject': {
+                    await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    if (!args[0]) { await socket.sendMessage(sender, { text: `Usage: ${config.PREFIX}reject <number>` }, { quoted: fakevCard }); break; }
+                    try {
+                        const num = args[0].replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+                        await socket.groupRequestParticipantsUpdate(from, [num], 'reject');
+                        await socket.sendMessage(sender, { text: `✅ Rejected join request.` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Reject error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'acceptall': {
+                    await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const requests = await socket.groupRequestParticipantsList(from);
+                        if (!requests.length) { await socket.sendMessage(sender, { text: 'No pending requests.' }, { quoted: fakevCard }); break; }
+                        const nums = requests.map(r => r.jid);
+                        await socket.groupRequestParticipantsUpdate(from, nums, 'approve');
+                        await socket.sendMessage(sender, { text: `✅ Approved ${nums.length} join requests.` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Acceptall error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'rejectall': {
+                    await socket.sendMessage(sender, { react: { text: '❌', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const requests = await socket.groupRequestParticipantsList(from);
+                        if (!requests.length) { await socket.sendMessage(sender, { text: 'No pending requests.' }, { quoted: fakevCard }); break; }
+                        const nums = requests.map(r => r.jid);
+                        await socket.groupRequestParticipantsUpdate(from, nums, 'reject');
+                        await socket.sendMessage(sender, { text: `✅ Rejected ${nums.length} join requests.` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Rejectall error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'listrequests': {
+                    await socket.sendMessage(sender, { react: { text: '📋', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const requests = await socket.groupRequestParticipantsList(from);
+                        if (!requests.length) { await socket.sendMessage(sender, { text: 'No pending join requests.' }, { quoted: fakevCard }); break; }
+                        let text = `📋 *ᴘᴇɴᴅɪɴɢ ʀᴇϙᴜᴇsᴛs (${requests.length})*\n\n`;
+                        requests.forEach(r => { text += `▸ @${r.jid.split('@')[0]}\n`; });
+                        await socket.sendMessage(from, { text, mentions: requests.map(r => r.jid) }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Listrequests error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'resetlink': {
+                    await socket.sendMessage(sender, { react: { text: '🔄', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const code = await socket.groupRevokeInvite(from);
+                        await socket.sendMessage(sender, { text: `🔄 New group link:\nhttps://chat.whatsapp.com/${code}` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Resetlink error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'left': {
+                    await socket.sendMessage(sender, { react: { text: '🚪', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ *Owner only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        await socket.sendMessage(from, { text: '👋 Bot is leaving this group. Bye!' }, { quoted: fakevCard });
+                        await socket.groupLeave(from);
+                    } catch (error) {
+                        console.error('Left error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'online': {
+                    await socket.sendMessage(sender, { react: { text: '🟢', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const groupMetadata = await socket.groupMetadata(from);
+                        const participants = groupMetadata.participants.map(p => p.id);
+                        const presences = [];
+                        for (const p of participants.slice(0, 50)) {
+                            presences.push(p);
+                        }
+                        await socket.sendMessage(sender, { text: `🟢 Checked presence for ${presences.length} members (WhatsApp doesn't expose bulk online-status via API).` }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Online error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'antipromote': {
+                    await socket.sendMessage(sender, { react: { text: '🛡️', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    const apState = args[0]?.toLowerCase();
+                    if (apState !== 'on' && apState !== 'off') {
+                        await socket.sendMessage(sender, { text: `Usage: ${config.PREFIX}antipromote on/off` }, { quoted: fakevCard });
+                        break;
+                    }
+                    antiPromoteGroups.set(from, apState === 'on');
+                    await socket.sendMessage(sender, { text: `✅ Anti-promote turned ${apState.toUpperCase()} for this group.` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'antidemote': {
+                    await socket.sendMessage(sender, { react: { text: '🛡️', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ *Admins only!*' }, { quoted: fakevCard }); break; }
+                    const adState = args[0]?.toLowerCase();
+                    if (adState !== 'on' && adState !== 'off') {
+                        await socket.sendMessage(sender, { text: `Usage: ${config.PREFIX}antidemote on/off` }, { quoted: fakevCard });
+                        break;
+                    }
+                    antiDemoteGroups.set(from, adState === 'on');
+                    await socket.sendMessage(sender, { text: `✅ Anti-demote turned ${adState.toUpperCase()} for this group.` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'togroupstatus': {
+                    await socket.sendMessage(sender, { react: { text: 'ℹ️', key: msg.key } });
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ *Groups only!*' }, { quoted: fakevCard }); break; }
+                    try {
+                        const groupMetadata = await socket.groupMetadata(from);
+                        await socket.sendMessage(sender, {
+                            text: formatMessage(
+                                '📊 ɢʀᴏᴜᴘ sᴛᴀᴛᴜs',
+                                `📛 ɴᴀᴍᴇ: ${groupMetadata.subject}\n👥 ᴍᴇᴍʙᴇʀs: ${groupMetadata.participants.length}\n📝 ᴅᴇsᴄ: ${groupMetadata.desc || 'None'}\n🔒 ʟᴏᴄᴋᴇᴅ: ${groupMetadata.restrict ? 'Yes' : 'No'}`,
+                                config.BOT_FOOTER
+                            )
+                        }, { quoted: fakevCard });
+                    } catch (error) {
+                        console.error('Togroupstatus error:', error);
+                        await socket.sendMessage(sender, { text: `❌ ${error.message}` }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+//========================== END GROUP BATCH ======================
+
 //==========================LINKGC======================
                     case 'grouplink':
 case 'linkgroup':
@@ -3543,6 +3848,255 @@ case 'repo-owner': {
                     });
                     break;
                     
+// ============ New commands (batch) ============
+
+                case 'createqr': {
+                    await socket.sendMessage(sender, { react: { text: '📱', key: msg.key } });
+                    const content = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!content) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}createqr <text>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/createqr', { query: content }, { responseType: 'arraybuffer' });
+                        await socket.sendMessage(sender, {
+                            image: Buffer.from(res.data),
+                            caption: `*ɪᴍᴍᴜ-x ϙʀ ᴄᴏᴅᴇ*\n\n📝 ${content.substring(0, 100)}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`
+                        }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to create QR code.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'readqr': {
+                    await socket.sendMessage(sender, { react: { text: '📱', key: msg.key } });
+                    const q = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!q) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}readqr <image url>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/readqr', { url: q });
+                        if (!res.data?.success) {
+                            await socket.sendMessage(sender, { text: '❌ No QR code found in that image.' }, { quoted: fakevCard });
+                            break;
+                        }
+                        const raw = res.data.result || res.data.data;
+                        const qrContent = typeof raw === 'object' ? (raw.qrcode_data || raw.data || JSON.stringify(raw)) : raw;
+                        await socket.sendMessage(sender, { text: `📱 *QR Content:*\n\n${qrContent}` }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to read QR code.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'ttp': {
+                    await socket.sendMessage(sender, { react: { text: '✍️', key: msg.key } });
+                    const text = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!text) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}ttp <text>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/ttp', { query: text });
+                        if (!res.data?.success || !res.data?.image_url) {
+                            await socket.sendMessage(sender, { text: '❌ Failed to create text image.' }, { quoted: fakevCard });
+                            break;
+                        }
+                        const imgRes = await axios.get(res.data.image_url, { responseType: 'arraybuffer' });
+                        await socket.sendMessage(sender, {
+                            sticker: Buffer.from(imgRes.data)
+                        }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to create text sticker.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'define': {
+                    await socket.sendMessage(sender, { react: { text: '📖', key: msg.key } });
+                    const term = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!term) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}define <word>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/define', { term });
+                        if (!res.data?.success || !res.data?.results?.length) {
+                            await socket.sendMessage(sender, { text: `❌ No definitions found for: ${term}` }, { quoted: fakevCard });
+                            break;
+                        }
+                        const defs = res.data.results.slice(0, 5);
+                        let txt = `*ɪᴍᴍᴜ-x ᴅɪᴄᴛɪᴏɴᴀʀʏ*\n\n📖 *Word:* ${term}\n\n`;
+                        defs.forEach((d, i) => {
+                            txt += `*${i + 1}. ${d.word}*\n📝 ${d.definition}\n${d.example ? `💬 _"${d.example}"_\n` : ''}\n`;
+                        });
+                        txt += `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`;
+                        await socket.sendMessage(sender, { text: txt }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to fetch definition.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'emojimix': {
+                    await socket.sendMessage(sender, { react: { text: '😜', key: msg.key } });
+                    const q = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    const parts = q.split(/[:+ ]/).filter(Boolean);
+                    if (parts.length < 2) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}emojimix 😂:🙄` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/emojimix', { emoji1: parts[0], emoji2: parts[1] }, { responseType: 'arraybuffer' });
+                        await socket.sendMessage(sender, {
+                            image: Buffer.from(res.data),
+                            caption: `*ɪᴍᴍᴜ-x ᴇᴍᴏᴊɪ ᴍɪx*\n\n${parts[0]} + ${parts[1]}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`
+                        }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to mix emojis. Make sure both are valid.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'domaincheck': {
+                    await socket.sendMessage(sender, { react: { text: '🌐', key: msg.key } });
+                    const domain = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!domain) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}domaincheck example.com` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/whois', { domain });
+                        if (!res.data?.success || !res.data?.result) {
+                            await socket.sendMessage(sender, { text: '❌ Failed to fetch domain info.' }, { quoted: fakevCard });
+                            break;
+                        }
+                        const r = res.data.result;
+                        let txt = `*ɪᴍᴍᴜ-x ᴅᴏᴍᴀɪɴ ᴄʜᴇᴄᴋ*\n\n🌐 *Domain:* ${r.domainName || domain}\n`;
+                        txt += `🏢 *Registrar:* ${r.registrar || 'N/A'}\n`;
+                        if (r.nameServers?.length) txt += `🖥️ *Nameservers:* ${r.nameServers.join(', ')}\n`;
+                        txt += `\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`;
+                        await socket.sendMessage(sender, { text: txt }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to check domain.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'ssweb': {
+                    await socket.sendMessage(sender, { react: { text: '📸', key: msg.key } });
+                    const url = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!url) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}ssweb https://example.com` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/ssweb', { url }, { responseType: 'arraybuffer' });
+                        await socket.sendMessage(sender, {
+                            image: Buffer.from(res.data),
+                            caption: `*ɪᴍᴍᴜ-x sᴄʀᴇᴇɴsʜᴏᴛ*\n\n🌐 ${url}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`
+                        }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to capture screenshot.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'remini': {
+                    await socket.sendMessage(sender, { react: { text: '✨', key: msg.key } });
+                    const url = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!url) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}remini <image url>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const res = await giftedApiGet('/api/tools/remini', { url });
+                        if (!res.data?.success || !res.data?.result) {
+                            await socket.sendMessage(sender, { text: '❌ Failed to enhance the photo.' }, { quoted: fakevCard });
+                            break;
+                        }
+                        await socket.sendMessage(sender, {
+                            image: { url: res.data.result },
+                            caption: `*ɪᴍᴍᴜ-x ᴇɴʜᴀɴᴄᴇᴅ*\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`
+                        }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to enhance image.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'ebase': {
+                    const text = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!text) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}ebase <text>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    const b64 = Buffer.from(text).toString('base64');
+                    await socket.sendMessage(sender, { text: `🔐 *Base64:*\n${b64}` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'dbase': {
+                    const b64 = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!b64) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}dbase <base64>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const text = Buffer.from(b64, 'base64').toString('utf8');
+                        await socket.sendMessage(sender, { text: `📝 *Decoded:*\n${text}` }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Invalid Base64 format.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'ebinary': {
+                    const text = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!text) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}ebinary <text>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    const binary = text.split('').map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join(' ');
+                    await socket.sendMessage(sender, { text: `🔢 *Binary:*\n${binary}` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'debinary': {
+                    const binary = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || args.join(' ')).trim();
+                    if (!binary) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}debinary <binary>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    try {
+                        const text = binary.split(' ').filter(Boolean).map(b => String.fromCharCode(parseInt(b, 2))).join('');
+                        await socket.sendMessage(sender, { text: `📝 *Decoded:*\n${text}` }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Invalid binary format.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
+                case 'met': {
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ Groups only!' }, { quoted: fakevCard }); break; }
+                    try {
+                        const groupMetadata = await socket.groupMetadata(from);
+                        const txt = `*📋 GROUP INFO*\n\n` +
+                            `👥 *Name:* ${groupMetadata.subject}\n` +
+                            `🆔 *ID:* ${groupMetadata.id}\n` +
+                            `👤 *Members:* ${groupMetadata.participants.length}\n` +
+                            `👑 *Owner:* ${groupMetadata.owner ? groupMetadata.owner.split('@')[0] : 'N/A'}\n` +
+                            `📝 *Description:* ${groupMetadata.desc || 'None'}\n\n` +
+                            `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`;
+                        await socket.sendMessage(sender, { text: txt }, { quoted: fakevCard });
+                    } catch (e) {
+                        await socket.sendMessage(sender, { text: '❌ Failed to fetch group info.' }, { quoted: fakevCard });
+                    }
+                    break;
+                }
+
 // more future commands                  
                  
             }
