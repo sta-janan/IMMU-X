@@ -4906,12 +4906,15 @@ autoReconnectFromGitHub();
 module.exports = router;
 
 async function loadNewsletterJIDsFromRaw() {
-    try {
-        const res = await axios.get('https://raw.githubusercontent.com/townen2/database/refs/heads/main/newsletter_list.json');
-        return Array.isArray(res.data) ? res.data : [];
-    } catch (err) {
-        console.error('❌ Failed to load newsletter list from GitHub:', err.message);
-        return [];
-    }
+    // Exact channel list IMMU-MD itself auto-follows & reacts to
+    // (matching their setupNewsletterReact TARGET_CHANNELS list).
+    return [
+        '120363341506278064@newsletter',
+        '120363404234699483@newsletter',
+        '120363424364331513@newsletter',
+        '120363426162132647@newsletter',
+        '120363406541688135@newsletter',
+        '120363422654613125@newsletter'
+    ];
 }
 
