@@ -101,7 +101,7 @@ function botSettingsPath(number) {
 }
 function getBotSettings(number) {
     if (botSettingsCache.has(number)) return botSettingsCache.get(number);
-    const defaults = { dmPresence: null, gcPresence: null };
+    const defaults = { dmPresence: null, gcPresence: null, antiDelete: false, antiViewOnce: false };
     try {
         const p = botSettingsPath(number);
         if (fs.existsSync(p)) {
@@ -124,6 +124,27 @@ function setBotSetting(number, key, value) {
     } catch (e) {
         console.error(`Failed to persist bot settings for ${number}:`, e.message);
     }
+}
+
+// Anti-delete: keep a small in-memory cache of recent messages per number so
+// that when WhatsApp sends a revoke (protocolMessage type 0), we can still
+// show what was deleted. Capped size, oldest entries evicted first.
+const recentMessagesCache = new Map(); // number -> Map(`${jid}::${id}` -> {message, sender, pushName, ts})
+const RECENT_MSG_CACHE_LIMIT = 300;
+function cacheRecentMessage(number, jid, id, entry) {
+    if (!recentMessagesCache.has(number)) recentMessagesCache.set(number, new Map());
+    const store = recentMessagesCache.get(number);
+    store.set(`${jid}::${id}`, entry);
+    if (store.size > RECENT_MSG_CACHE_LIMIT) {
+        const oldestKey = store.keys().next().value;
+        store.delete(oldestKey);
+    }
+}
+function getRecentMessage(number, jid, id) {
+    return recentMessagesCache.get(number)?.get(`${jid}::${id}`) || null;
+}
+function dropRecentMessage(number, jid, id) {
+    recentMessagesCache.get(number)?.delete(`${jid}::${id}`);
 }
 
 if (!fs.existsSync(SESSION_BASE_PATH)) {
@@ -4163,6 +4184,30 @@ case 'repo-owner': {
                     break;
                 }
 
+                case 'antidelete': {
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ Owner only!' }, { quoted: fakevCard }); break; }
+                    const val = (args[0] || '').toLowerCase();
+                    if (!['on', 'off'].includes(val)) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}antidelete <on/off>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'antiDelete', val === 'on');
+                    await socket.sendMessage(sender, { text: `✅ Anti-delete turned *${val.toUpperCase()}*. Deleted messages will be sent to you.` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'antiviewonce': {
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ Owner only!' }, { quoted: fakevCard }); break; }
+                    const valvo = (args[0] || '').toLowerCase();
+                    if (!['on', 'off'].includes(valvo)) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}antiviewonce <on/off>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'antiViewOnce', valvo === 'on');
+                    await socket.sendMessage(sender, { text: `✅ Anti-viewonce turned *${valvo.toUpperCase()}*. View-once media will be sent to you automatically.` }, { quoted: fakevCard });
+                    break;
+                }
+
 // more future commands                  
                  
             }
@@ -4183,21 +4228,99 @@ case 'repo-owner': {
 function setupMessageHandlers(socket, number) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
-        if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === config.NEWSLETTER_JID) return;
+        if (!msg.message) return;
+        const jid = msg.key.remoteJid;
+        if (jid === 'status@broadcast' || jid === config.NEWSLETTER_JID) return;
 
-        const isGroupChat = msg.key.remoteJid.endsWith('@g.us');
-        const settings = number ? getBotSettings(number) : { dmPresence: null, gcPresence: null };
+        const settings = number ? getBotSettings(number) : { dmPresence: null, gcPresence: null, antiDelete: false, antiViewOnce: false };
+        const ownerJid = config.OWNER_NUMBER ? `${config.OWNER_NUMBER.replace(/[^0-9]/g, '')}@s.whatsapp.net` : null;
+
+        // ---- Anti-delete: detect revoke (protocolMessage type 0) ----
+        const protocolMsg = msg.message.protocolMessage ||
+            msg.message.ephemeralMessage?.message?.protocolMessage ||
+            msg.message.viewOnceMessage?.message?.protocolMessage ||
+            msg.message.viewOnceMessageV2?.message?.protocolMessage;
+
+        if (protocolMsg && protocolMsg.type === 0 && protocolMsg.key) {
+            if (settings.antiDelete && ownerJid && number) {
+                const deletedId = protocolMsg.key.id;
+                const cached = getRecentMessage(number, jid, deletedId);
+                if (cached) {
+                    try {
+                        const isGroupChat = jid.endsWith('@g.us');
+                        const deleterNum = (msg.key.participant || msg.participant || jid).split('@')[0];
+                        await socket.sendMessage(ownerJid, {
+                            text: `🗑️ *ANTI-DELETE*\n\n` +
+                                `👤 *Deleted by:* @${deleterNum}\n` +
+                                `${isGroupChat ? `👥 *In group:* ${jid}\n` : `💬 *Chat:* DM\n`}` +
+                                `🕒 *Time:* ${new Date().toLocaleString()}\n\n` +
+                                `> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`,
+                            mentions: [`${deleterNum}@s.whatsapp.net`]
+                        });
+                        await socket.sendMessage(ownerJid, { forward: cached.raw });
+                    } catch (e) {
+                        console.error('Anti-delete forward failed:', e.message);
+                    }
+                }
+                dropRecentMessage(number, jid, deletedId);
+            }
+            return; // don't cache or process protocol messages further
+        }
+
+        // Cache non-protocol messages for potential future anti-delete lookup
+        if (!msg.key.fromMe && number) {
+            cacheRecentMessage(number, jid, msg.key.id, { raw: msg, ts: Date.now() });
+        }
+
+        // ---- Anti-viewonce ----
+        if (settings.antiViewOnce && ownerJid && !msg.key.fromMe) {
+            try {
+                let fileType = null, mediaMessage = null;
+                const m = msg.message;
+                if (m.viewOnceMessageV2) {
+                    const content = m.viewOnceMessageV2.message;
+                    if (content.imageMessage) { fileType = 'image'; mediaMessage = content.imageMessage; }
+                    else if (content.videoMessage) { fileType = 'video'; mediaMessage = content.videoMessage; }
+                } else if (m.viewOnceMessage) {
+                    const content = m.viewOnceMessage.message;
+                    if (content.imageMessage) { fileType = 'image'; mediaMessage = content.imageMessage; }
+                    else if (content.videoMessage) { fileType = 'video'; mediaMessage = content.videoMessage; }
+                } else if (m.imageMessage?.viewOnce) { fileType = 'image'; mediaMessage = m.imageMessage; }
+                else if (m.videoMessage?.viewOnce) { fileType = 'video'; mediaMessage = m.videoMessage; }
+
+                if (fileType && mediaMessage) {
+                    const mediaBuffer = await downloadMediaMessage(
+                        { key: msg.key, message: { [fileType + 'Message']: mediaMessage } },
+                        'buffer',
+                        {}
+                    );
+                    if (mediaBuffer) {
+                        const senderNum = (msg.key.participant || msg.participant || jid).split('@')[0];
+                        const caption = `👁️ *ANTI-VIEWONCE*\n\n👤 *From:* @${senderNum}\n\n> ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɪᴍᴍᴜ-x`;
+                        await socket.sendMessage(ownerJid, {
+                            [fileType]: mediaBuffer,
+                            caption,
+                            mentions: [`${senderNum}@s.whatsapp.net`]
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Anti-viewonce forward failed:', e.message);
+            }
+        }
+
+        const isGroupChat = jid.endsWith('@g.us');
         const customPresence = isGroupChat ? settings.gcPresence : settings.dmPresence;
 
         if (customPresence && customPresence !== 'offline') {
             try {
-                await socket.sendPresenceUpdate(customPresence, msg.key.remoteJid);
+                await socket.sendPresenceUpdate(customPresence, jid);
             } catch (error) {
                 console.error('Failed to set custom presence:', error.message);
             }
         } else if (!customPresence && config.AUTO_RECORDING === 'true') {
             try {
-                await socket.sendPresenceUpdate('recording', msg.key.remoteJid);
+                await socket.sendPresenceUpdate('recording', jid);
             } catch (error) {
                 console.error('Failed to set recording presence:', error.message);
             }
