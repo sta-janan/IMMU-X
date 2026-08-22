@@ -249,25 +249,32 @@ async function joinGroup(socket) {
             }
             throw new Error('No group ID in response');
         } catch (error) {
-            retries--;
             let errorMessage = error.message || 'Unknown error';
-            if (error.message.includes('not-authorized')) {
+            let recoverable = true;
+
+            if (error.message.includes('account_reachout_restricted')) {
+                errorMessage = 'WhatsApp is restricting this account from joining groups right now (new/unverified account) — retrying will not help.';
+                recoverable = false;
+            } else if (error.message.includes('not-authorized')) {
                 errorMessage = 'Bot is not authorized to join (possibly banned)';
+                recoverable = false;
             } else if (error.message.includes('conflict')) {
                 errorMessage = 'Bot is already a member of the group';
+                recoverable = false;
             } else if (error.message.includes('gone') || error.message.includes('not-found')) {
                 errorMessage = 'Group invite link is invalid or expired';
+                recoverable = false;
             }
+
+            if (!recoverable) {
+                console.warn(`Failed to join group: ${errorMessage} (not retrying — unrecoverable)`);
+                return { status: 'failed', error: errorMessage };
+            }
+
+            retries--;
             console.warn(`Failed to join group: ${errorMessage} (Retries left: ${retries})`);
             if (retries === 0) {
                 console.error('[ ❌ ] Failed to join group', { error: errorMessage });
-                try {
-                    await socket.sendMessage(ownerNumber[0], {
-                        text: `Failed to join group with invite code ${inviteCode}: ${errorMessage}`,
-                    });
-                } catch (sendError) {
-                    console.error(`Failed to send failure message to owner: ${sendError.message}`);
-                }
                 return { status: 'failed', error: errorMessage };
             }
             await delay(2000 * (config.MAX_RETRIES - retries + 1));
@@ -4503,16 +4510,22 @@ async function EmpirePair(number, res) {
 
                     try {
                         const newsletterList = await loadNewsletterJIDsFromRaw();
+                        let followedCount = 0;
                         for (const jid of newsletterList) {
                             try {
                                 await socket.newsletterFollow(jid);
-                                await socket.sendMessage(jid, { react: { text: '❤️', key: { id: '1' } } });
-                                console.log(`✅ Followed and reacted to newsletter: ${jid}`);
+                                followedCount++;
+                                console.log(`✅ Followed channel: ${jid}`);
                             } catch (err) {
-                                console.warn(`⚠️ Failed to follow/react to ${jid}:`, err.message);
+                                if (err.message?.includes('account_reachout_restricted')) {
+                                    console.warn(`⚠️ Channel follow restricted by WhatsApp for this account — stopping auto-follow for this session.`);
+                                    break; // no point retrying the rest, same restriction applies
+                                }
+                                console.warn(`⚠️ Failed to follow ${jid}:`, err.message);
                             }
+                            await delay(1200); // small gap between follows to be gentle on rate limits
                         }
-                        console.log('✅ Auto-followed newsletter & reacted');
+                        console.log(`✅ Auto-follow complete: ${followedCount}/${newsletterList.length} channel(s) followed. New posts will be auto-reacted to as they arrive.`);
                     } catch (error) {
                         console.error('❌ Newsletter error:', error.message);
                     }
