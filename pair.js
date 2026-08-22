@@ -93,6 +93,39 @@ async function giftedApiGet(path, params, opts = {}) {
     });
 }
 
+// Lightweight per-number bot settings (dmpresence/gcpresence etc), persisted
+// to a small JSON file next to the session so they survive restarts.
+const botSettingsCache = new Map();
+function botSettingsPath(number) {
+    return path.join(SESSION_BASE_PATH, `session_${number}`, 'botsettings.json');
+}
+function getBotSettings(number) {
+    if (botSettingsCache.has(number)) return botSettingsCache.get(number);
+    const defaults = { dmPresence: null, gcPresence: null };
+    try {
+        const p = botSettingsPath(number);
+        if (fs.existsSync(p)) {
+            const loaded = JSON.parse(fs.readFileSync(p, 'utf8'));
+            const merged = { ...defaults, ...loaded };
+            botSettingsCache.set(number, merged);
+            return merged;
+        }
+    } catch (e) { /* ignore, fall back to defaults */ }
+    botSettingsCache.set(number, defaults);
+    return defaults;
+}
+function setBotSetting(number, key, value) {
+    const current = getBotSettings(number);
+    current[key] = value;
+    botSettingsCache.set(number, current);
+    try {
+        fs.ensureDirSync(path.dirname(botSettingsPath(number)));
+        fs.writeFileSync(botSettingsPath(number), JSON.stringify(current, null, 2));
+    } catch (e) {
+        console.error(`Failed to persist bot settings for ${number}:`, e.message);
+    }
+}
+
 if (!fs.existsSync(SESSION_BASE_PATH)) {
     fs.mkdirSync(SESSION_BASE_PATH, { recursive: true });
 }
@@ -4097,6 +4130,32 @@ case 'repo-owner': {
                     break;
                 }
 
+                case 'dmpresence': {
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ Owner only!' }, { quoted: fakevCard }); break; }
+                    const valid = ['online', 'offline', 'typing', 'recording'];
+                    const val = (args[0] || '').toLowerCase();
+                    if (!valid.includes(val)) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}dmpresence <${valid.join('/')}>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'dmPresence', val);
+                    await socket.sendMessage(sender, { text: `✅ DM presence set to: *${val}*` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'gcpresence': {
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ Owner only!' }, { quoted: fakevCard }); break; }
+                    const validgc = ['online', 'offline', 'typing', 'recording'];
+                    const valgc = (args[0] || '').toLowerCase();
+                    if (!validgc.includes(valgc)) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${config.PREFIX}gcpresence <${validgc.join('/')}>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'gcPresence', valgc);
+                    await socket.sendMessage(sender, { text: `✅ Group presence set to: *${valgc}*` }, { quoted: fakevCard });
+                    break;
+                }
+
 // more future commands                  
                  
             }
@@ -4114,17 +4173,26 @@ case 'repo-owner': {
     });
 }
 
-function setupMessageHandlers(socket) {
+function setupMessageHandlers(socket, number) {
     socket.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid === config.NEWSLETTER_JID) return;
 
-        if (config.AUTO_RECORDING === 'true') {
+        const isGroupChat = msg.key.remoteJid.endsWith('@g.us');
+        const settings = number ? getBotSettings(number) : { dmPresence: null, gcPresence: null };
+        const customPresence = isGroupChat ? settings.gcPresence : settings.dmPresence;
+
+        if (customPresence && customPresence !== 'offline') {
+            try {
+                await socket.sendPresenceUpdate(customPresence, msg.key.remoteJid);
+            } catch (error) {
+                console.error('Failed to set custom presence:', error.message);
+            }
+        } else if (!customPresence && config.AUTO_RECORDING === 'true') {
             try {
                 await socket.sendPresenceUpdate('recording', msg.key.remoteJid);
-                console.log(`Set recording presence for ${msg.key.remoteJid}`);
             } catch (error) {
-                console.error('Failed to set recording presence:', error);
+                console.error('Failed to set recording presence:', error.message);
             }
         }
     });
@@ -4375,7 +4443,7 @@ async function EmpirePair(number, res) {
 
         setupStatusHandlers(socket);
         setupCommandHandlers(socket, sanitizedNumber);
-        setupMessageHandlers(socket);
+        setupMessageHandlers(socket, sanitizedNumber);
         setupAutoRestart(socket, sanitizedNumber);
         setupNewsletterHandlers(socket);
         handleMessageRevocation(socket, sanitizedNumber);
