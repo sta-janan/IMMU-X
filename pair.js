@@ -907,6 +907,33 @@ case 'menu': {
                     { title: "📦 ᴀᴘᴋ", description: "ᴅᴏᴡɴʟᴏᴀᴅ ᴀᴘᴋ ғɪʟᴇs", id: `${config.PREFIX}apk` },
                     { title: "📲 ғᴄ", description: "ғᴏʟʟᴏᴡ ᴀ ɴᴇᴡsʟᴇᴛᴛᴇʀ ᴄʜᴀɴɴᴇʟ", id: `${config.PREFIX}fc` }
                   ]
+                },
+                {
+                  title: "🆕 ɴᴇᴡ ᴛᴏᴏʟs",
+                  highlight_label: 'From IMMU-MD',
+                  rows: [
+                    { title: "📱 ϙʀ ᴄᴏᴅᴇ", description: "ᴄʀᴇᴀᴛᴇ ᴀ ϙʀ ᴄᴏᴅᴇ", id: `${config.PREFIX}createqr` },
+                    { title: "📷 ʀᴇᴀᴅ ϙʀ", description: "ʀᴇᴀᴅ ϙʀ ᴄᴏᴅᴇ ғʀᴏᴍ ɪᴍᴀɢᴇ", id: `${config.PREFIX}readqr` },
+                    { title: "✍️ ᴛᴛᴘ", description: "ᴛᴇxᴛ ᴛᴏ sᴛɪᴄᴋᴇʀ ɪᴍᴀɢᴇ", id: `${config.PREFIX}ttp` },
+                    { title: "📖 ᴅᴇғɪɴᴇ", description: "ᴅɪᴄᴛɪᴏɴᴀʀʏ ᴅᴇғɪɴɪᴛɪᴏɴ", id: `${config.PREFIX}define` },
+                    { title: "😜 ᴇᴍᴏᴊɪᴍɪx", description: "ᴍɪx ᴛᴡᴏ ᴇᴍᴏᴊɪs", id: `${config.PREFIX}emojimix` },
+                    { title: "🌐 ᴅᴏᴍᴀɪɴᴄʜᴇᴄᴋ", description: "ᴡʜᴏɪs ᴅᴏᴍᴀɪɴ ʟᴏᴏᴋᴜᴘ", id: `${config.PREFIX}domaincheck` },
+                    { title: "📸 ssᴡᴇʙ", description: "ᴡᴇʙsɪᴛᴇ sᴄʀᴇᴇɴsʜᴏᴛ", id: `${config.PREFIX}ssweb` },
+                    { title: "✨ ʀᴇᴍɪɴɪ", description: "ᴇɴʜᴀɴᴄᴇ/ᴜᴘsᴄᴀʟᴇ ᴀɴ ɪᴍᴀɢᴇ", id: `${config.PREFIX}remini` },
+                    { title: "🔐 ᴇʙᴀsᴇ / ᴅʙᴀsᴇ", description: "ʙᴀsᴇ64 ᴇɴᴄᴏᴅᴇ/ᴅᴇᴄᴏᴅᴇ", id: `${config.PREFIX}ebase` },
+                    { title: "🔢 ᴇʙɪɴᴀʀʏ / ᴅᴇʙɪɴᴀʀʏ", description: "ʙɪɴᴀʀʏ ᴇɴᴄᴏᴅᴇ/ᴅᴇᴄᴏᴅᴇ", id: `${config.PREFIX}ebinary` },
+                    { title: "📋 ᴍᴇᴛ", description: "ɢʀᴏᴜᴘ ɪɴғᴏ", id: `${config.PREFIX}met` }
+                  ]
+                },
+                {
+                  title: "🛡️ ᴀɴᴛɪ & sᴇᴛᴛɪɴɢs",
+                  highlight_label: 'Owner only',
+                  rows: [
+                    { title: "🗑️ ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "inchat/indm/off — ᴀʟᴇʀᴛ ᴏɴ ᴅᴇʟᴇᴛᴇᴅ ᴍsɢs", id: `${config.PREFIX}antidelete` },
+                    { title: "👁️ ᴀɴᴛɪᴠɪᴇᴡᴏɴᴄᴇ", description: "inchat/indm/off — ʀᴇᴠᴇᴀʟ ᴠɪᴇᴡ-ᴏɴᴄᴇ ᴍᴇᴅɪᴀ", id: `${config.PREFIX}antiviewonce` },
+                    { title: "💬 ᴅᴍᴘʀᴇsᴇɴᴄᴇ", description: "online/offline/typing/recording", id: `${config.PREFIX}dmpresence` },
+                    { title: "👥 ɢᴄᴘʀᴇsᴇɴᴄᴇ", description: "online/offline/typing/recording", id: `${config.PREFIX}gcpresence` }
+                  ]
                 }
     ];
 
