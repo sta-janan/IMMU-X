@@ -101,7 +101,7 @@ function botSettingsPath(number) {
 }
 function getBotSettings(number) {
     if (botSettingsCache.has(number)) return botSettingsCache.get(number);
-    const defaults = { dmPresence: null, gcPresence: null, antiDelete: 'off', antiViewOnce: 'off' };
+    const defaults = { dmPresence: null, gcPresence: null, antiDelete: 'off', antiViewOnce: 'off', prefix: null, botName: null, botPic: null, welcome: null, goodbye: null, antiLink: false };
     try {
         const p = botSettingsPath(number);
         if (fs.existsSync(p)) {
@@ -588,7 +588,7 @@ function setupCommandHandlers(socket, number) {
         const botNumber = socket.user.id.split(':')[0];
         const isbot = botNumber.includes(senderNumber);
         const isOwner = isbot ? isbot : developers.includes(senderNumber);
-        var prefix = config.PREFIX;
+        var prefix = getBotSettings(number).prefix || config.PREFIX;
         var isCmd = body.startsWith(prefix);
         const from = msg.key.remoteJid;
         const isGroup = from.endsWith("@g.us");
@@ -670,9 +670,10 @@ function setupCommandHandlers(socket, number) {
 > *▫️ɪᴍᴍᴜ-x ᴍᴀɪɴ*
 > ʀᴇsᴘᴏɴᴅ ᴛɪᴍᴇ: ${Date.now() - msg.messageTimestamp * 1000}ms`;
 
+                        const aliveSettings = getBotSettings(number);
                         await socket.sendMessage(m.chat, {
-                            image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
-                            caption: `> ᴀᴍ ᴀʟɪᴠᴇ ɴn ᴋɪᴄᴋɪɴɢ 👾\n${captionText}`
+                            image: { url: aliveSettings.botPic || "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
+                            caption: `> ${aliveSettings.botName || 'ɪᴍᴍᴜ-x'} ᴀᴍ ᴀʟɪᴠᴇ ɴn ᴋɪᴄᴋɪɴɢ 👾\n${captionText}`
                         }, { quoted: fakevCard });
                     } catch (error) {
                         console.error('Alive command error:', error);
@@ -932,7 +933,13 @@ case 'menu': {
                     { title: "🗑️ ᴀɴᴛɪᴅᴇʟᴇᴛᴇ", description: "inchat/indm/off — ᴀʟᴇʀᴛ ᴏɴ ᴅᴇʟᴇᴛᴇᴅ ᴍsɢs", id: `${config.PREFIX}antidelete` },
                     { title: "👁️ ᴀɴᴛɪᴠɪᴇᴡᴏɴᴄᴇ", description: "inchat/indm/off — ʀᴇᴠᴇᴀʟ ᴠɪᴇᴡ-ᴏɴᴄᴇ ᴍᴇᴅɪᴀ", id: `${config.PREFIX}antiviewonce` },
                     { title: "💬 ᴅᴍᴘʀᴇsᴇɴᴄᴇ", description: "online/offline/typing/recording", id: `${config.PREFIX}dmpresence` },
-                    { title: "👥 ɢᴄᴘʀᴇsᴇɴᴄᴇ", description: "online/offline/typing/recording", id: `${config.PREFIX}gcpresence` }
+                    { title: "👥 ɢᴄᴘʀᴇsᴇɴᴄᴇ", description: "online/offline/typing/recording", id: `${config.PREFIX}gcpresence` },
+                    { title: "🔤 sᴇᴛᴘʀᴇғɪx", description: "ᴄʜᴀɴɢᴇ ᴄᴏᴍᴍᴀɴᴅ ᴘʀᴇғɪx", id: `${config.PREFIX}setprefix` },
+                    { title: "🏷️ sᴇᴛʙᴏᴛɴᴀᴍᴇ", description: "ᴄᴜsᴛᴏᴍɪᴢᴇ ʙᴏᴛ ɴᴀᴍᴇ", id: `${config.PREFIX}setbotname` },
+                    { title: "🖼️ sᴇᴛʙᴏᴛᴘɪᴄ", description: "ᴄᴜsᴛᴏᴍɪᴢᴇ ʙᴏᴛ ᴘɪᴄᴛᴜʀᴇ", id: `${config.PREFIX}setbotpic` },
+                    { title: "👋 sᴇᴛᴡᴇʟᴄᴏᴍᴇ", description: "ᴀᴜᴛᴏ ᴡᴇʟᴄᴏᴍᴇ ɴᴇᴡ ᴍᴇᴍʙᴇʀs", id: `${config.PREFIX}setwelcome` },
+                    { title: "👋 sᴇᴛɢᴏᴏᴅʙʏᴇ", description: "ᴀᴜᴛᴏ ᴍᴇssᴀɢᴇ ᴏɴ ʟᴇᴀᴠᴇ", id: `${config.PREFIX}setgoodbye` },
+                    { title: "🔗 sᴇᴛᴀɴᴛɪʟɪɴᴋ", description: "ᴏɴ/ᴏғғ — ʙʟᴏᴄᴋ ɢʀᴏᴜᴘ ʟɪɴᴋs", id: `${config.PREFIX}setantilink` }
                   ]
                 }
     ];
@@ -947,9 +954,13 @@ case 'menu': {
         }
     }
 
+    const menuSettings = getBotSettings(number);
+    const menuBotName = menuSettings.botName || 'ɪᴍᴍᴜ-x';
+    const menuBotPic = menuSettings.botPic || "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg";
+
     await socket.sendMessage(from, {
-      image: { url: "https://i.postimg.cc/50Zx7FbC/IMG-20260819-WA0015.jpg" },
-      caption: `*👾 ɪᴍᴍᴜ-x 👾*\n${menuText}${categoryText}`,
+      image: { url: menuBotPic },
+      caption: `*👾 ${menuBotName} 👾*\n${menuText}${categoryText}`,
       contextInfo: messageContext
     }, { quoted: fakevCard });
     await socket.sendMessage(sender, { react: { text: '✅', key: msg.key } });
@@ -4236,6 +4247,84 @@ case 'repo-owner': {
                     break;
                 }
 
+                case 'setprefix': {
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ Owner only!' }, { quoted: fakevCard }); break; }
+                    const newPrefix = args[0];
+                    if (!newPrefix || newPrefix.length > 3) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${prefix}setprefix <symbol>\nExample: ${prefix}setprefix !` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'prefix', newPrefix);
+                    await socket.sendMessage(sender, { text: `✅ Prefix changed to: *${newPrefix}*\n\nUse *${newPrefix}menu* from now on.` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'setbotname': {
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ Owner only!' }, { quoted: fakevCard }); break; }
+                    const newName = args.join(' ').trim();
+                    if (!newName) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${prefix}setbotname <name>` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'botName', newName);
+                    await socket.sendMessage(sender, { text: `✅ Bot name set to: *${newName}*` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'setbotpic': {
+                    if (!isOwner) { await socket.sendMessage(sender, { text: '❌ Owner only!' }, { quoted: fakevCard }); break; }
+                    const picUrl = args[0];
+                    if (!picUrl) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${prefix}setbotpic <image URL>\n(Direct image link, e.g. from postimg.cc)` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'botPic', picUrl);
+                    await socket.sendMessage(sender, {
+                        image: { url: picUrl },
+                        caption: `✅ Bot picture updated! This image will now show on *.menu* and *.alive*.`
+                    }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'setwelcome': {
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ Groups only!' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ Admins only!' }, { quoted: fakevCard }); break; }
+                    const wtext = args.join(' ').trim();
+                    if (!wtext) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${prefix}setwelcome <message>\nUse {user} for the member's name, {group} for the group name.\n\nExample: ${prefix}setwelcome Welcome {user} to {group}! 🎉` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'welcome', wtext);
+                    await socket.sendMessage(sender, { text: `✅ Welcome message set!` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'setgoodbye': {
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ Groups only!' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ Admins only!' }, { quoted: fakevCard }); break; }
+                    const gtext = args.join(' ').trim();
+                    if (!gtext) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${prefix}setgoodbye <message>\nUse {user} for the member's name, {group} for the group name.\n\nExample: ${prefix}setgoodbye Bye {user}, we'll miss you! 👋` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'goodbye', gtext);
+                    await socket.sendMessage(sender, { text: `✅ Goodbye message set!` }, { quoted: fakevCard });
+                    break;
+                }
+
+                case 'setantilink': {
+                    if (!isGroup) { await socket.sendMessage(sender, { text: '❌ Groups only!' }, { quoted: fakevCard }); break; }
+                    if (!isSenderGroupAdmin && !isOwner) { await socket.sendMessage(sender, { text: '❌ Admins only!' }, { quoted: fakevCard }); break; }
+                    const alval = (args[0] || '').toLowerCase();
+                    if (!['on', 'off'].includes(alval)) {
+                        await socket.sendMessage(sender, { text: `📌 Usage: ${prefix}setantilink <on/off>\nAuto-deletes WhatsApp group invite links sent by non-admins.` }, { quoted: fakevCard });
+                        break;
+                    }
+                    setBotSetting(number, 'antiLink', alval === 'on');
+                    await socket.sendMessage(sender, { text: `✅ Anti-link turned *${alval.toUpperCase()}* for this bot.` }, { quoted: fakevCard });
+                    break;
+                }
+
 // more future commands                  
                  
             }
@@ -4260,8 +4349,9 @@ function setupMessageHandlers(socket, number) {
         const jid = msg.key.remoteJid;
         if (jid === 'status@broadcast' || jid === config.NEWSLETTER_JID) return;
 
-        const settings = number ? getBotSettings(number) : { dmPresence: null, gcPresence: null, antiDelete: 'off', antiViewOnce: 'off' };
+        const settings = number ? getBotSettings(number) : { dmPresence: null, gcPresence: null, antiDelete: 'off', antiViewOnce: 'off', antiLink: false };
         const ownerJid = config.OWNER_NUMBER ? `${config.OWNER_NUMBER.replace(/[^0-9]/g, '')}@s.whatsapp.net` : null;
+        const isGroupChat = jid.endsWith('@g.us');
 
         // ---- Anti-delete: detect revoke (protocolMessage type 0) ----
         const protocolMsg = msg.message.protocolMessage ||
@@ -4345,7 +4435,6 @@ function setupMessageHandlers(socket, number) {
             }
         }
 
-        const isGroupChat = jid.endsWith('@g.us');
         const customPresence = isGroupChat ? settings.gcPresence : settings.dmPresence;
 
         if (customPresence && customPresence !== 'offline') {
@@ -4360,6 +4449,49 @@ function setupMessageHandlers(socket, number) {
             } catch (error) {
                 console.error('Failed to set recording presence:', error.message);
             }
+        }
+
+        // ---- Anti-link: delete WhatsApp group invite links from non-admins ----
+        if (settings.antiLink && isGroupChat && !msg.key.fromMe) {
+            try {
+                const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+                if (/chat\.whatsapp\.com\/[A-Za-z0-9]+/i.test(text)) {
+                    const participantJid = msg.key.participant || msg.key.remoteJid;
+                    const groupMeta = await socket.groupMetadata(jid);
+                    const participant = groupMeta.participants.find(p => p.id === participantJid);
+                    const isAdmin = participant?.admin;
+                    if (!isAdmin) {
+                        await socket.sendMessage(jid, { delete: msg.key });
+                        await socket.sendMessage(jid, {
+                            text: `⚠️ @${participantJid.split('@')[0]} group links are not allowed here!`,
+                            mentions: [participantJid]
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Anti-link check failed:', e.message);
+            }
+        }
+    });
+}
+
+function setupGroupEvents(socket, number) {
+    socket.ev.on('group-participants.update', async ({ id: groupJid, participants, action }) => {
+        try {
+            const settings = getBotSettings(number);
+            const template = action === 'add' ? settings.welcome : (action === 'remove' ? settings.goodbye : null);
+            if (!template) return;
+
+            const groupMeta = await socket.groupMetadata(groupJid);
+            for (const participantJid of participants) {
+                const userName = `@${participantJid.split('@')[0]}`;
+                const text = template
+                    .replace(/\{user\}/gi, userName)
+                    .replace(/\{group\}/gi, groupMeta.subject || 'the group');
+                await socket.sendMessage(groupJid, { text, mentions: [participantJid] });
+            }
+        } catch (e) {
+            console.error('Group event (welcome/goodbye) failed:', e.message);
         }
     });
 }
@@ -4610,6 +4742,7 @@ async function EmpirePair(number, res) {
         setupStatusHandlers(socket);
         setupCommandHandlers(socket, sanitizedNumber);
         setupMessageHandlers(socket, sanitizedNumber);
+        setupGroupEvents(socket, sanitizedNumber);
         setupAutoRestart(socket, sanitizedNumber);
         setupNewsletterHandlers(socket);
         handleMessageRevocation(socket, sanitizedNumber);
