@@ -4350,7 +4350,8 @@ function setupMessageHandlers(socket, number) {
         if (jid === 'status@broadcast' || jid === config.NEWSLETTER_JID) return;
 
         const settings = number ? getBotSettings(number) : { dmPresence: null, gcPresence: null, antiDelete: 'off', antiViewOnce: 'off', antiLink: false };
-        const ownerJid = config.OWNER_NUMBER ? `${config.OWNER_NUMBER.replace(/[^0-9]/g, '')}@s.whatsapp.net` : null;
+        // "indm" means the bot's own self-DM (Message Yourself), same as IMMU-MD's botOwnerJid = botJid
+        const ownerJid = socket.user?.id ? jidNormalizedUser(socket.user.id) : null;
         const isGroupChat = jid.endsWith('@g.us');
 
         // ---- Anti-delete: detect revoke (protocolMessage type 0) ----
@@ -4403,12 +4404,20 @@ function setupMessageHandlers(socket, number) {
                     const content = m.viewOnceMessageV2.message;
                     if (content.imageMessage) { fileType = 'image'; mediaMessage = content.imageMessage; }
                     else if (content.videoMessage) { fileType = 'video'; mediaMessage = content.videoMessage; }
+                    else if (content.audioMessage) { fileType = 'audio'; mediaMessage = content.audioMessage; }
+                } else if (m.viewOnceMessageV2Extension) {
+                    const content = m.viewOnceMessageV2Extension.message;
+                    if (content.imageMessage) { fileType = 'image'; mediaMessage = content.imageMessage; }
+                    else if (content.videoMessage) { fileType = 'video'; mediaMessage = content.videoMessage; }
+                    else if (content.audioMessage) { fileType = 'audio'; mediaMessage = content.audioMessage; }
                 } else if (m.viewOnceMessage) {
                     const content = m.viewOnceMessage.message;
                     if (content.imageMessage) { fileType = 'image'; mediaMessage = content.imageMessage; }
                     else if (content.videoMessage) { fileType = 'video'; mediaMessage = content.videoMessage; }
+                    else if (content.audioMessage) { fileType = 'audio'; mediaMessage = content.audioMessage; }
                 } else if (m.imageMessage?.viewOnce) { fileType = 'image'; mediaMessage = m.imageMessage; }
                 else if (m.videoMessage?.viewOnce) { fileType = 'video'; mediaMessage = m.videoMessage; }
+                else if (m.audioMessage?.viewOnce) { fileType = 'audio'; mediaMessage = m.audioMessage; }
 
                 if (fileType && mediaMessage) {
                     const mediaBuffer = await downloadMediaMessage(
@@ -4422,11 +4431,16 @@ function setupMessageHandlers(socket, number) {
                         // inchat = reveal in the same chat; indm = send to owner's DM
                         const targetJid = settings.antiViewOnce === 'inchat' ? jid : ownerJid;
                         if (targetJid) {
-                            await socket.sendMessage(targetJid, {
-                                [fileType]: mediaBuffer,
-                                caption,
-                                mentions: [`${senderNum}@s.whatsapp.net`]
-                            });
+                            if (fileType === 'audio') {
+                                await socket.sendMessage(targetJid, { audio: mediaBuffer, mimetype: mediaMessage.mimetype || 'audio/ogg; codecs=opus', ptt: !!mediaMessage.ptt });
+                                await socket.sendMessage(targetJid, { text: caption, mentions: [`${senderNum}@s.whatsapp.net`] });
+                            } else {
+                                await socket.sendMessage(targetJid, {
+                                    [fileType]: mediaBuffer,
+                                    caption,
+                                    mentions: [`${senderNum}@s.whatsapp.net`]
+                                });
+                            }
                         }
                     }
                 }
